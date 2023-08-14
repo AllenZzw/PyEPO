@@ -24,7 +24,7 @@ class tspABModel(optGrbModel):
         edges (list): List of edge index
     """
 
-    def __init__(self, num_nodes):
+    def __init__(self, num_nodes, params = {}):
         """
         Args:
             num_nodes (int): number of nodes
@@ -33,6 +33,7 @@ class tspABModel(optGrbModel):
         self.nodes = list(range(num_nodes))
         self.edges = [(i, j) for i in self.nodes
                       for j in self.nodes if i < j]
+        self.params = params 
         super().__init__()
 
     @property
@@ -98,7 +99,8 @@ class tspGGModel(tspABModel):
             tuple: optimization model and variables
         """
         # ceate a model
-        m = gp.Model("tsp")
+        env = gp.Env(params=self.params)
+        m = gp.Model("tsp", env=env)
         # varibles
         directed_edges = self.edges + [(j, i) for (i, j) in self.edges]
         x = m.addVars(directed_edges, name="x", vtype=GRB.BINARY)
@@ -190,7 +192,8 @@ class tspGGModelRel(tspGGModel):
             tuple: optimization model and variables
         """
         # ceate a model
-        m = gp.Model("tsp")
+        env = gp.Env(params=self.params)
+        m = gp.Model("tsp", env=env)
         # turn off output
         m.Params.outputFlag = 0
         # varibles
@@ -257,7 +260,8 @@ class tspDFJModel(tspABModel):
             tuple: optimization model and variables
         """
         # ceate a model
-        m = gp.Model("tsp")
+        env = gp.Env(params=self.params)
+        m = gp.Model("tsp", env=env)
         # turn off output
         m.Params.outputFlag = 0
         # varibles
@@ -378,7 +382,8 @@ class tspMTZModel(tspABModel):
             tuple: optimization model and variables
         """
         # ceate a model
-        m = gp.Model("tsp")
+        env = gp.Env(params=self.params)
+        m = gp.Model("tsp", env=env)
         # turn off output
         m.Params.outputFlag = 0
         # varibles
@@ -476,7 +481,8 @@ class tspMTZModelRel(tspMTZModel):
             tuple: optimization model and variables
         """
         # ceate a model
-        m = gp.Model("tsp")
+        env = gp.Env(params=self.params)
+        m = gp.Model("tsp", env=self.env)
         # turn off output
         m.Params.outputFlag = 0
         # varibles
