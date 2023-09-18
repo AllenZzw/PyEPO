@@ -482,7 +482,7 @@ class tspMTZModelRel(tspMTZModel):
         """
         # ceate a model
         env = gp.Env(params=self.params)
-        m = gp.Model("tsp", env=self.env)
+        m = gp.Model("tsp", env=env)
         # turn off output
         m.Params.outputFlag = 0
         # varibles
