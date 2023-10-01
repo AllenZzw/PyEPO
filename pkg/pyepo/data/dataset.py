@@ -97,6 +97,7 @@ class optDataset(Dataset):
             tuple: data features (torch.tensor), costs (torch.tensor), optimal solutions (torch.tensor) and objective values (torch.tensor)
         """
         return (
+            torch.IntTensor([index]), 
             torch.FloatTensor(self.feats[index]),
             torch.FloatTensor(self.costs[index]),
             torch.FloatTensor(self.sols[index]),

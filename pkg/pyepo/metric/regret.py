@@ -27,7 +27,7 @@ def regret(predmodel, optmodel, dataloader):
     optsum = 0
     # load data
     for data in dataloader:
-        x, c, w, z = data
+        x, c, w, z, index = data
         # cuda
         if next(predmodel.parameters()).is_cuda:
             x, c, w, z = x.cuda(), c.cuda(), w.cuda(), z.cuda()
