@@ -11,6 +11,7 @@ from torch.autograd import Function
 from pyepo import EPO
 from pyepo.func.abcmodule import optModule
 from pyepo.utlis import getArgs
+from pyepo.func.utlis import _solve_in_pass
 
 
 class perturbedOpt(optModule):
@@ -49,11 +50,11 @@ class perturbedOpt(optModule):
         # build optimizer
         self.ptb = perturbedOptFunc()
 
-    def forward(self, pred_cost):
+    def forward(self, pred_cost, sol_index):
         """
         Forward pass
         """
-        sols = self.ptb.apply(pred_cost, self.optmodel, self.n_samples,
+        sols = self.ptb.apply(pred_cost, sol_index, self.optmodel, self.n_samples,
                               self.sigma, self.processes, self.pool, self.rnd,
                               self.solve_ratio, self)
         return sols
@@ -65,7 +66,7 @@ class perturbedOptFunc(Function):
     """
 
     @staticmethod
-    def forward(ctx, pred_cost, optmodel, n_samples, sigma,
+    def forward(ctx, pred_cost, sol_index, optmodel, n_samples, sigma,
                 processes, pool, rnd, solve_ratio, module):
         """
         Forward pass for perturbed
@@ -88,21 +89,25 @@ class perturbedOptFunc(Function):
         device = pred_cost.device
         # convert tenstor
         cp = pred_cost.detach().to("cpu").numpy()
+        idx = sol_index.detach().to("cpu").numpy() 
         # sample perturbations
         noises = rnd.normal(0, 1, size=(n_samples, *cp.shape))
         ptb_c = cp + sigma * noises
+        ptb_sols = [[None] * len(cp)] * n_samples
         # solve with perturbation
-        rand_sigma = np.random.uniform()
-        if rand_sigma <= solve_ratio:
-            ptb_sols = _solve_in_pass(ptb_c, optmodel, processes, pool)
-            if solve_ratio < 1:
-                sols = ptb_sols.reshape(-1, cp.shape[1])
-                # add into solpool
-                module.solpool = np.concatenate((module.solpool, sols))
-                # remove duplicate
-                module.solpool = np.unique(module.solpool, axis=0)
-        else:
-            ptb_sols = _cache_in_pass(ptb_c, optmodel, module.solpool)
+        if module.solpool != None: 
+            for i in range(n_samples): 
+                ptb_sols[i], _ = module.solpool.cache_in_pass(ptb_c[i], idx, optmodel.modelSense)
+        
+        if np.random.uniform() <= solve_ratio:
+            for i in range(n_samples):
+                ptb_sols[i], _ = _solve_in_pass(ptb_c[i], optmodel, processes, pool, ptb_sols[i])
+                if module.solpool != None: 
+                     # todo: handle last solution caching with perturbations
+                    module.solpool.update_cache(idx, ptb_sols[i])
+
+        ptb_sols = np.stack(ptb_sols, axis=0).transpose(1,0,2)
+        
         # solution expectation
         e_sol = ptb_sols.mean(axis=1)
         # convert to tensor
@@ -130,7 +135,7 @@ class perturbedOptFunc(Function):
                             noises,
                             torch.einsum("bnd,bd->bn", ptb_sols, grad_output))
         grad /= n_samples * sigma
-        return grad, None, None, None, None, None, None, None, None
+        return grad, None, None, None, None, None, None, None, None, None
 
 
 class perturbedFenchelYoung(optModule):
@@ -171,11 +176,11 @@ class perturbedFenchelYoung(optModule):
         # build optimizer
         self.pfy = perturbedFenchelYoungFunc()
 
-    def forward(self, pred_cost, true_sol, reduction="mean"):
+    def forward(self, pred_cost, true_sol, sol_index, reduction="mean"):
         """
         Forward pass
         """
-        loss = self.pfy.apply(pred_cost, true_sol, self.optmodel, self.n_samples,
+        loss = self.pfy.apply(pred_cost, true_sol, sol_index, self.optmodel, self.n_samples,
                               self.sigma, self.processes, self.pool, self.rnd,
                               self.solve_ratio, self)
         # reduction
@@ -196,7 +201,7 @@ class perturbedFenchelYoungFunc(Function):
     """
 
     @staticmethod
-    def forward(ctx, pred_cost, true_sol, optmodel, n_samples, sigma,
+    def forward(ctx, pred_cost, true_sol, sol_index, optmodel, n_samples, sigma,
                 processes, pool, rnd, solve_ratio, module):
         """
         Forward pass for perturbed Fenchel-Young loss
@@ -221,21 +226,24 @@ class perturbedFenchelYoungFunc(Function):
         # convert tenstor
         cp = pred_cost.detach().to("cpu").numpy()
         w = true_sol.detach().to("cpu").numpy()
+        idx = sol_index.detach().to("cpu").numpy() 
         # sample perturbations
         noises = rnd.normal(0, 1, size=(n_samples, *cp.shape))
         ptb_c = cp + sigma * noises
+        ptb_sols = [[None] * len(cp)] * n_samples
         # solve with perturbation
-        rand_sigma = np.random.uniform()
-        if rand_sigma <= solve_ratio:
-            ptb_sols = _solve_in_pass(ptb_c, optmodel, processes, pool)
-            if solve_ratio < 1:
-                sols = ptb_sols.reshape(-1, cp.shape[1])
-                # add into solpool
-                module.solpool = np.concatenate((module.solpool, sols))
-                # remove duplicate
-                module.solpool = np.unique(module.solpool, axis=0)
-        else:
-            ptb_sols = _cache_in_pass(ptb_c, optmodel, module.solpool)
+        if module.solpool != None: 
+            for i in range(n_samples):
+                ptb_sols[i], _ = module.solpool.cache_in_pass(ptb_c[i], idx, optmodel.modelSense)
+        
+        if np.random.uniform() <= solve_ratio:
+            for i in range(n_samples):
+                ptb_sols[i], _ = _solve_in_pass(ptb_c[i], optmodel, processes, pool, ptb_sols[i])
+                if module.solpool != None: 
+                     # todo: handle last solution caching with perturbations
+                    module.solpool.update_cache(idx, ptb_sols[i])
+        ptb_sols = np.stack(ptb_sols, axis=0).transpose(1,0,2)
+
         # solution expectation
         e_sol = ptb_sols.mean(axis=1)
         # difference
@@ -259,78 +267,4 @@ class perturbedFenchelYoungFunc(Function):
         """
         grad, = ctx.saved_tensors
         grad_output = torch.unsqueeze(grad_output, dim=-1)
-        return grad * grad_output, None, None, None, None, None, None, None, None, None
-
-
-def _solve_in_pass(ptb_c, optmodel, processes, pool):
-    """
-    A function to solve optimization in the forward pass
-    """
-    # number of instance
-    n_samples, ins_num = ptb_c.shape[0], ptb_c.shape[1]
-    # single-core
-    if processes == 1:
-        ptb_sols = []
-        for i in range(ins_num):
-            sols = []
-            # per sample
-            for j in range(n_samples):
-                # solve
-                optmodel.setObj(ptb_c[j,i])
-                sol, _ = optmodel.solve()
-                sols.append(sol)
-            ptb_sols.append(sols)
-    # multi-core
-    else:
-        # get class
-        model_type = type(optmodel)
-        # get args
-        args = getArgs(optmodel)
-        # parallel computing
-        ptb_sols = pool.amap(_solveWithObj4Par, ptb_c.transpose(1,0,2),
-                             [args] * ins_num, [model_type] * ins_num).get()
-    return np.array(ptb_sols)
-
-
-def _cache_in_pass(ptb_c, optmodel, solpool):
-    """
-    A function to use solution pool in the forward/backward pass
-    """
-    # number of samples & instance
-    n_samples, ins_num, _ = ptb_c.shape
-    # init sols
-    ptb_sols = []
-    for j in range(n_samples):
-        # best solution in pool
-        solpool_obj = ptb_c[j] @ solpool.T
-        if optmodel.modelSense == EPO.MINIMIZE:
-            ind = np.argmin(solpool_obj, axis=1)
-        if optmodel.modelSense == EPO.MAXIMIZE:
-            ind = np.argmax(solpool_obj, axis=1)
-        ptb_sols.append(solpool[ind])
-    return np.array(ptb_sols).transpose(1,0,2)
-
-
-def _solveWithObj4Par(perturbed_costs, args, model_type):
-    """
-    A global function to solve function in parallel processors
-
-    Args:
-        perturbed_costs (np.ndarray): costsof objective function with perturbation
-        args (dict): optModel args
-        model_type (ABCMeta): optModel class type
-
-    Returns:
-        list: optimal solution
-    """
-    # rebuild model
-    optmodel = model_type(**args)
-    # per sample
-    sols = []
-    for cost in perturbed_costs:
-        # set obj
-        optmodel.setObj(cost)
-        # solve
-        sol, _ = optmodel.solve()
-        sols.append(sol)
-    return sols
+        return grad * grad_output, None, None, None, None, None, None, None, None, None, None

@@ -132,7 +132,7 @@ class tspGGModel(tspABModel):
                           for k, (i,j) in enumerate(self.edges))
         self._model.setObjective(obj)
 
-    def solve(self):
+    def solve(self, init_sol):
         """
         A method to solve model
         """
@@ -214,7 +214,7 @@ class tspGGModelRel(tspGGModel):
                      for (i,j) in x if i != 0)
         return m, x
 
-    def solve(self):
+    def solve(self, init_sol):
         """
         A method to solve model
 
@@ -331,7 +331,7 @@ class tspDFJModel(tspABModel):
         obj = gp.quicksum(c[i] * self.x[k] for i, k in enumerate(self.edges))
         self._model.setObjective(obj)
 
-    def solve(self):
+    def solve(self, init_sol):
         """
         A method to solve model
         """
@@ -421,7 +421,7 @@ class tspMTZModel(tspABModel):
                           for k, (i,j) in enumerate(self.edges))
         self._model.setObjective(obj)
 
-    def solve(self):
+    def solve(self, init_sol):
         """
         A method to solve model
         """
@@ -507,7 +507,7 @@ class tspMTZModelRel(tspMTZModel):
                      if (i != 0) and (j != 0))
         return m, x
 
-    def solve(self):
+    def solve(self, init_sol):
         """
         A method to solve model
 

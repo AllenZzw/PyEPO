@@ -54,7 +54,7 @@ class optModel: #(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def solve(self):
+    def solve(self, init_sol):
         """
         An abstract method to solve model
 

@@ -74,7 +74,7 @@ class optDataset(Dataset):
             tuple: optimal solution (np.ndarray) and objective value (float)
         """
         self.model.setObj(cost)
-        sol, obj = self.model.solve()
+        sol, obj = self.model.solve(None)
         return sol, obj
 
     def __len__(self):

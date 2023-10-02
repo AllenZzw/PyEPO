@@ -39,11 +39,11 @@ class SPOPlus(optModule):
         # build carterion
         self.spop = SPOPlusFunc()
 
-    def forward(self, pred_cost, true_cost, true_sol, true_obj, reduction="mean"):
+    def forward(self, pred_cost, true_cost, true_sol, true_obj, sol_index, reduction="mean"):
         """
         Forward pass
         """
-        loss = self.spop.apply(pred_cost, true_cost, true_sol, true_obj,
+        loss = self.spop.apply(pred_cost, true_cost, true_sol, true_obj, sol_index, 
                                self.optmodel, self.processes, self.pool,
                                self.solve_ratio, self)
         # reduction
@@ -64,7 +64,7 @@ class SPOPlusFunc(Function):
     """
 
     @staticmethod
-    def forward(ctx, pred_cost, true_cost, true_sol, true_obj,
+    def forward(ctx, pred_cost, true_cost, true_sol, true_obj, sol_index, 
                 optmodel, processes, pool, solve_ratio, module):
         """
         Forward pass for SPO+
@@ -90,18 +90,19 @@ class SPOPlusFunc(Function):
         c = true_cost.detach().to("cpu").numpy()
         w = true_sol.detach().to("cpu").numpy()
         z = true_obj.detach().to("cpu").numpy()
+        idx = sol_index.detach().to("cpu").numpy() 
         # check sol
         #_check_sol(c, w, z)
         # solve
+        sol, obj = [None]*len(cp), [None]*len(cp)
+        if module.solpool != None: 
+            sol, obj = module.solpool.cache_in_pass(2*cp-c, idx, optmodel.modelSense)
+
         if np.random.uniform() <= solve_ratio:
-            sol, obj = _solve_in_pass(2*cp-c, optmodel, processes, pool)
-            if solve_ratio < 1:
-                # add into solpool
-                module.solpool = np.concatenate((module.solpool, sol))
-                # remove duplicate
-                module.solpool = np.unique(module.solpool, axis=0)
-        else:
-            sol, obj = _cache_in_pass(2*cp-c, optmodel, module.solpool)
+            sol, obj = _solve_in_pass(2*cp-c, optmodel, processes, pool, sol)
+            if module.solpool != None: 
+                module.solpool.update_cache(idx, sol) 
+
         # calculate loss
         loss = []
         for i in range(len(cp)):
@@ -132,4 +133,4 @@ class SPOPlusFunc(Function):
             grad = 2 * (w - wq)
         if optmodel.modelSense == EPO.MAXIMIZE:
             grad = 2 * (wq - w)
-        return grad_output * grad, None, None, None, None, None, None, None, None
+        return grad_output * grad, None, None, None, None, None, None, None, None, None

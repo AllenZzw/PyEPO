@@ -61,7 +61,7 @@ class optOmoModel(optModel):
         if self.modelSense == EPO.MAXIMIZE:
             self._model.obj = pe.Objective(sense=pe.maximize, expr=obj)
 
-    def solve(self):
+    def solve(self, init_sol):
         """
         A method to solve model
 

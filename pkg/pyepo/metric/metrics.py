@@ -34,12 +34,12 @@ def SPOError(pred_cost, true_cost, model_type, args):
     for c, cp in zip(true_cost, pred_cost):
         # opt sol for pred cost
         optmodel.setObj(cp)
-        sol, _ = optmodel.solve()
+        sol, _ = optmodel.solve(None)
         # obj with true cost
         obj = np.dot(sol, c)
         # opt obj for true cost
         optmodel.setObj(c)
-        _, optobj = optmodel.solve()
+        _, optobj = optmodel.solve(None)
         # calculate regret
         if optmodel.modelSense == EPO.MINIMIZE:
             regret = obj - optobj

@@ -30,7 +30,7 @@ def unambRegret(predmodel, optmodel, dataloader, tolerance=1e-5):
     optsum = 0
     # load data
     for data in dataloader:
-        x, c, w, z, index = data
+        index, x, c, w, z = data
         # cuda
         if next(predmodel.parameters()).is_cuda:
             x, c, w, z = x.cuda(), c.cuda(), w.cuda(), z.cuda()
@@ -66,7 +66,7 @@ def calUnambRegret(optmodel, pred_cost, true_cost, true_obj, tolerance=1e-5):
     cp = np.around(pred_cost / tolerance).astype(int)
     # opt sol for pred cost
     optmodel.setObj(cp)
-    sol, objp = optmodel.solve()
+    sol, objp = optmodel.solve(None)
     sol = np.array(sol)
     objp = np.ceil(np.dot(cp, sol.T))
     # opt for pred cost
@@ -77,7 +77,7 @@ def calUnambRegret(optmodel, pred_cost, true_cost, true_obj, tolerance=1e-5):
     # opt model to find worst case
     try:
         wst_optmodel.setObj(-true_cost)
-        _, obj = wst_optmodel.solve()
+        _, obj = wst_optmodel.solve(None)
     except:
         tolerance *= 10
         return calUnambRegret(optmodel, pred_cost, true_cost, true_obj, tolerance=tolerance)

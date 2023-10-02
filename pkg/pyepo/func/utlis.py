@@ -10,7 +10,7 @@ from pyepo import EPO
 from pyepo.utlis import getArgs
 
 
-def _solve_in_pass(cp, optmodel, processes, pool):
+def _solve_in_pass(cp, optmodel, processes, pool, init_sols):
     """
     A function to solve optimization in the forward/backward pass
     """
@@ -23,7 +23,7 @@ def _solve_in_pass(cp, optmodel, processes, pool):
         for i in range(ins_num):
             # solve
             optmodel.setObj(cp[i])
-            solp, objp = optmodel.solve()
+            solp, objp = optmodel.solve(init_sols[i])
             sol.append(solp)
             obj.append(objp)
     # multi-core
@@ -33,7 +33,7 @@ def _solve_in_pass(cp, optmodel, processes, pool):
         # get args
         args = getArgs(optmodel)
         # parallel computing
-        res = pool.amap(_solveWithObj4Par, cp, [args] * ins_num,
+        res = pool.amap(_solveWithObj4Par, cp, init_sols, [args] * ins_num,
                         [model_type] * ins_num).get()
         # get res
         sol = np.array(list(map(lambda x: x[0], res)))
@@ -41,6 +41,7 @@ def _solve_in_pass(cp, optmodel, processes, pool):
     return sol, obj
 
 
+# todo: remove all calling to this function 
 def _cache_in_pass(cp, optmodel, solpool):
     """
     A function to use solution pool in the forward/backward pass
@@ -58,7 +59,7 @@ def _cache_in_pass(cp, optmodel, solpool):
     return sol, obj
 
 
-def _solveWithObj4Par(cost, args, model_type):
+def _solveWithObj4Par(cost, init_sol, args, model_type):
     """
     A function to solve function in parallel processors
 
@@ -75,7 +76,7 @@ def _solveWithObj4Par(cost, args, model_type):
     # set obj
     optmodel.setObj(cost)
     # solve
-    sol, obj = optmodel.solve()
+    sol, obj = optmodel.solve(init_sol)
     return sol, obj
 
 

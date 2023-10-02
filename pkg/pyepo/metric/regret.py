@@ -27,7 +27,7 @@ def regret(predmodel, optmodel, dataloader):
     optsum = 0
     # load data
     for data in dataloader:
-        x, c, w, z, index = data
+        index, x, c, w, z = data
         # cuda
         if next(predmodel.parameters()).is_cuda:
             x, c, w, z = x.cuda(), c.cuda(), w.cuda(), z.cuda()
@@ -61,7 +61,7 @@ def calRegret(optmodel, pred_cost, true_cost, true_obj):
     """
     # opt sol for pred cost
     optmodel.setObj(pred_cost)
-    sol, _ = optmodel.solve()
+    sol, _ = optmodel.solve(None)
     # obj with true cost
     obj = np.dot(sol, true_cost)
     # loss
