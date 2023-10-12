@@ -24,7 +24,7 @@ class tspABModel(optGrbModel):
         edges (list): List of edge index
     """
 
-    def __init__(self, num_nodes, params = {}):
+    def __init__(self, num_nodes, params = {}, iter_no=1, relaxation=0):
         """
         Args:
             num_nodes (int): number of nodes
@@ -34,6 +34,9 @@ class tspABModel(optGrbModel):
         self.edges = [(i, j) for i in self.nodes
                       for j in self.nodes if i < j]
         self.params = params 
+        self.iter = iter_no
+        self.relax = relaxation
+        self.rnd_state = np.random.RandomState(1)
         super().__init__()
 
     @property
@@ -47,7 +50,7 @@ class tspABModel(optGrbModel):
         Returns:
             optModel: new copied model
         """
-        new_model = type(self)(self.num_nodes)
+        new_model = type(self)(self.num_nodes, self.params) 
         return new_model
 
     def getTour(self, sol):
@@ -328,6 +331,7 @@ class tspDFJModel(tspABModel):
         """
         if len(c) != self.num_cost:
             raise ValueError("Size of cost vector cannot match vars.")
+        self.costs = c 
         obj = gp.quicksum(c[i] * self.x[k] for i, k in enumerate(self.edges))
         self._model.setObjective(obj)
 
@@ -335,13 +339,30 @@ class tspDFJModel(tspABModel):
         """
         A method to solve model
         """
-        self._model.update()
-        self._model.optimize(self._subtourelim)
-        sol = np.zeros(self.num_cost, dtype=np.uint8)
-        for i, e in enumerate(self.edges):
-            if self.x[e].x > 1e-2:
-                sol[i] = 1
-        return sol, self._model.objVal
+        if self.relax > 0 and init_sol is not None: 
+            current_sol, obj = init_sol, 0.0 
+            for i in range(self.iter):
+                model = self._model.copy()
+                xs = model.getVars() 
+                model._x = {key: xs[i] for i, key in enumerate(self.edges)}
+                model._n = len(self.nodes)
+                model.Params.lazyConstraints = 1
+                edges = [idx for idx, e in enumerate(self.edges) if current_sol[idx] == 1] 
+                choices = self.rnd_state.choice(edges, size=int(len(edges) * (1-self.relax)), replace=False)
+                model.addConstrs(xs[j] >= 1 for j in choices)
+                model.setObjective(gp.quicksum(self.costs[i] * xs[i] for i, k in enumerate(self.edges)))
+                model.update()
+                model.optimize(self._subtourelim)
+                current_sol, obj = np.array([1 if xs[i].x > 1e-2 else 0 for i, e in enumerate(self.edges)]), model.objVal
+            return current_sol, obj 
+        else: 
+            self._model.update()
+            self._model.optimize(self._subtourelim)
+            sol = np.zeros(self.num_cost, dtype=np.uint8)
+            for i, e in enumerate(self.edges):
+                if self.x[e].x > 1e-2:
+                    sol[i] = 1
+            return sol, self._model.objVal
 
     def addConstr(self, coefs, rhs):
         """
