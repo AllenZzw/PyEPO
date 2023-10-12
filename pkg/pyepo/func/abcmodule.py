@@ -39,7 +39,8 @@ class SolCahce():
                 ind = np.argmax(solpool_obj, axis=1)
             obj = np.take_along_axis(solpool_obj, ind.reshape(-1,1), axis=1).reshape(-1)
             sol = self.cache[ind]
-        elif self.mode == "last": 
+        elif self.mode == "last":
+            index = index.flatten()
             sol = self.cache[index]
             obj = np.sum(cp * sol, axis=1)
         return sol, obj

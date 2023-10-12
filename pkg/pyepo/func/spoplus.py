@@ -27,7 +27,7 @@ class SPOPlus(optModule):
     Reference: <https://doi.org/10.1287/mnsc.2020.3922>
     """
 
-    def __init__(self, optmodel, processes=1, solve_ratio=1, dataset=None):
+    def __init__(self, optmodel, processes=1, solve_ratio=1, dataset=None, cache_mode="best"):
         """
         Args:
             optmodel (optModel): an PyEPO optimization model
@@ -35,7 +35,7 @@ class SPOPlus(optModule):
             solve_ratio (float): the ratio of new solutions computed during training
             dataset (None/optDataset): the training data
         """
-        super().__init__(optmodel, processes, solve_ratio, dataset)
+        super().__init__(optmodel, processes, solve_ratio, dataset, cache_mode)
         # build carterion
         self.spop = SPOPlusFunc()
 
