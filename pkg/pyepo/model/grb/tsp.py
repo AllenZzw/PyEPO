@@ -34,8 +34,8 @@ class tspABModel(optGrbModel):
         self.edges = [(i, j) for i in self.nodes
                       for j in self.nodes if i < j]
         self.params = params 
-        self.iter = iter_no
-        self.relax = relaxation
+        self.lns_iter = iter_no
+        self.lns_relax = relaxation
         self.rnd_state = np.random.RandomState(1)
         super().__init__()
 
@@ -339,16 +339,16 @@ class tspDFJModel(tspABModel):
         """
         A method to solve model
         """
-        if self.relax > 0 and init_sol is not None: 
+        if self.lns_relax > 0 and init_sol is not None: 
             current_sol, obj = init_sol, 0.0 
-            for i in range(self.iter):
+            for i in range(self.lns_iter):
                 model = self._model.copy()
                 xs = model.getVars() 
                 model._x = {key: xs[i] for i, key in enumerate(self.edges)}
                 model._n = len(self.nodes)
                 model.Params.lazyConstraints = 1
                 edges = [idx for idx, e in enumerate(self.edges) if current_sol[idx] == 1] 
-                choices = self.rnd_state.choice(edges, size=int(len(edges) * (1-self.relax)), replace=False)
+                choices = self.rnd_state.choice(edges, size=int(len(edges) * (1-self.lns_relax)), replace=False)
                 model.addConstrs(xs[j] >= 1 for j in choices)
                 model.setObjective(gp.quicksum(self.costs[i] * xs[i] for i, k in enumerate(self.edges)))
                 model.update()
