@@ -345,6 +345,8 @@ class tspDFJModel(tspABModel):
                 model = self._model.copy()
                 xs = model.getVars() 
                 model._x = {key: xs[i] for i, key in enumerate(self.edges)}
+                for i, j in self.edges:
+                    model._x[j, i] = model._x[i, j]
                 model._n = len(self.nodes)
                 model.Params.lazyConstraints = 1
                 edges = [idx for idx, e in enumerate(self.edges) if current_sol[idx] == 1] 
@@ -353,7 +355,10 @@ class tspDFJModel(tspABModel):
                 model.setObjective(gp.quicksum(self.costs[i] * xs[i] for i, k in enumerate(self.edges)))
                 model.update()
                 model.optimize(self._subtourelim)
-                current_sol, obj = np.array([1 if xs[i].x > 1e-2 else 0 for i, e in enumerate(self.edges)]), model.objVal
+                if model.Status == GRB.OPTIMAL:
+                    current_sol, obj = np.array([1 if xs[i].x > 1e-2 else 0 for i, e in enumerate(self.edges)]), model.objVal
+                else:
+                    raise RuntimeError("model status is %d" %(m.Status))
             return current_sol, obj 
         else: 
             self._model.update()
