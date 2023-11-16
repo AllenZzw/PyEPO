@@ -4,4 +4,4 @@
 Synthetic data generation
 """
 
-from pyepo.data import dataset, shortestpath, knapsack, tsp, maxcut, misp
+from pyepo.data import dataset, shortestpath, knapsack, tsp, maxcut, misp, vrp 

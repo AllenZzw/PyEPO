@@ -10,3 +10,4 @@ from pyepo.model.grb.knapsack import knapsackModel
 from pyepo.model.grb.tsp import tspGGModel, tspDFJModel, tspMTZModel
 from pyepo.model.grb.misp import mispModel
 from pyepo.model.grb.maxcut import maxCutModel
+from pyepo.model.grb.vrp import vrpModel
